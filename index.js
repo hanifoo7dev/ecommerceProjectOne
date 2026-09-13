@@ -4,12 +4,20 @@ const express = require ('express')
 const app = express()
 const router = express.Router()
 const authRouter = require('./routes/authRouter')
+const userRouter = require('./routes/userRouter')
+const adminRouter = require('./routes/adminRouter')
+const vendorRouter = require('./routes/vendorRouter')
+const {adminMiddleware} = require('./middleware/roleMiddleware')
 const mongodbConfig = require('./config/mongodbConfig')
 
 app.use(express.json())
 mongodbConfig()
 
 app.use('/api/v1/auth', authRouter)
+app.use('/api/v1/user', userRouter)
+app.use('/api/v1/admin',adminMiddleware, adminRouter)
+app.use('/api/v1/vendor', vendorRouter)
+
 
 const port= process.env.PORT || 5000
 

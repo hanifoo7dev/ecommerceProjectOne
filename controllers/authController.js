@@ -1,7 +1,7 @@
 const User = require('../models/userSchema')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const {varificationEmail} = require('../utils/emailSender')
+const {varificationEmail,forgetPasswordEmail} = require('../utils/emailSender')
 
 
 
@@ -21,7 +21,6 @@ if(existinguser){
         message: "User already exits"
     }) 
 }
-
 // cheacking
 if(!fullName || !email || !password || !confarmpassword || !terms){
     return res.status(400).json({
@@ -53,12 +52,12 @@ if(!strongPasswordPattern.test(password)){
 }
 //  password bycript
 const hash = bcrypt.hashSync(password, 10);
-
 // Schema validation
 let user = new User({
   fullName: fullName,
   email: email,
   password: hash,
+  role: role,
   terms: terms  
 })
 //  save in database
@@ -68,7 +67,7 @@ let token = jwt.sign({
     _id:user._id,
     email: user.email,
     role: user.role
-},process.env.JWT_VERIFY_SECRET,{expiresIn: "7d"} );
+},process.env.JWT_VERIFY_SECRET,{expiresIn: "30d"} );
 // to see token create or not 
 // console.log(token)
 varificationEmail(email,token)
@@ -78,7 +77,6 @@ return res.status(201).json({
     message: "registration done"
   })
 }
-
 // make logiinController
 let loginController = async(req,res)=>{
     let {email, password}= req.body
@@ -106,15 +104,21 @@ if(!emailRegex.test(email)){
 // validate password with  token  by bcrypt
 let passCompare = bcrypt.compareSync(password,existinguseer.password ); 
 if(passCompare){
+    let accessToken = jwt.sign({
+    _id:existinguseer._id,
+    email: existinguseer.email,
+    role: existinguseer.role
+},process.env.JWT_VERIFY_SECRET,{expiresIn: "90d"} );
     res.status(200).json({
             success: true, 
             messagge: "Login successfully",
             data: {
                 _id: existinguseer._id,
-                fullname: existinguseer.fullname,
+                fullname: existinguseer.fullName,
                 email: existinguseer.email,
                 role: existinguseer.role
-            }
+            },
+            accessToken:accessToken
         })
 }else{
      return res.status(400).json({
@@ -123,7 +127,6 @@ if(passCompare){
         })
 }
 }
-
 // verify emailController
 let verifyEmailController = async (req,res)=>{
 let {token}= req.params
@@ -136,10 +139,66 @@ return res.status(200).json({
     message: "Email Verified"
   })
 }
+// forgot password controller
+let forgotPassword = async(req,res)=>{
+    let {email}= req.body
+     let existinguseer = await User.findOne({email: email})
+    if(!existinguseer){
+       return res.status(400).json({
+        success: false,
+        message: "User not found"
+    }) 
+   }
+   let resetPasswordtoken = jwt.sign({
+    _id:existinguseer._id,
+    email: existinguseer.email,
+    },process.env.JWT_VERIFY_SECRET,{expiresIn: "3d"} );
+forgetPasswordEmail(email,resetPasswordtoken)
+  res.status(200).json({
+  success: true,
+  message: "please check your email for reset your password"
+})
 
+}
+// reset passwor controller
+let resetPassword = async(req,res)=>{
+    let {token}= req.params
+    let {newPassword,confarmPassword}= req.body
+    if (newPassword !== confarmPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "Password not match"
+    });
+  }
+  try {
+const decoded = jwt.verify(token, process.env.JWT_VERIFY_SECRET);
+// console.log(decoded)
+// if(decoded){
+//     if(newPassword == confarmPassword){
+        const hash = bcrypt.hashSync(newPassword, 10);
 
- 
+      await User.findByIdAndUpdate({_id: decoded._id},{password:hash})  
+      return res.status(200).json({
+        success: true,
+        message: "Password update done"
+  })
+
+}catch(error){
+   console.error("Reset Password Error:", error.message);
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token"
+  })
+ }
+}
     
 
 
-module.exports ={registrationController,loginController,verifyEmailController }
+
+
+
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2YWE2MWE5ZTFlNDhjZTllODVmODM3MTgiLCJlbWFpbCI6ImhhbmlmMDA3LmRldkBnbWFpbC5jb20iLCJpYXQiOjE3ODkyNzI0NjIsImV4cCI6MTc4OTUzMTY2Mn0.rTMEMfAEBnJEb9P3PeQiphR3l2_iJ6dLG3SeZ6EuOpE
+    
+
+
+module.exports ={registrationController,loginController,verifyEmailController,forgetPasswordEmail,forgotPassword,resetPassword }

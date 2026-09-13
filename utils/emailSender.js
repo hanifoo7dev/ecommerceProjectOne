@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
   },
 })
 
-// mske function 
+// make function 
 async function varificationEmail(email,token){
 try {
   const info = await transporter.sendMail({
@@ -28,5 +28,22 @@ try {
   console.error("Error while sending mail:", err);
 }
 }
+// make functionn for fogerpassword reset by email
+async function forgetPasswordEmail(email,token){
+try {
+  const info = await transporter.sendMail({
+    from: 'hanif007.dev@gmail.com', 
+    to: email, 
+    subject: "please reset your password ", 
+    html: `<b> For reseting password <a href="http://localhost:5173/resetpassword/${token}" >Click Here</a></b>`
+  });
 
-module.exports= {varificationEmail}
+  console.log("Message sent: %s", info.messageId);
+  // Preview URL is only available when using an Ethereal test account
+  console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+} catch (err) {
+  console.error("Error while sending mail:", err);
+}
+}
+
+module.exports= {varificationEmail,forgetPasswordEmail}
