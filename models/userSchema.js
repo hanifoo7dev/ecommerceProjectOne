@@ -23,7 +23,7 @@ const userSchema = new Schema({
     role: {
       type: String,
       enum: ['user','admin'],
-      defalut: 'user' 
+      default: 'user' 
     },
     isVarified:{
       type: Boolean,
